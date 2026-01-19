@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PQS - Pivot Query Synthesizer (FULLY FIXED)</title>
+<style>
+body { font-family: Arial, sans-serif; background: #f3f4f6; margin:0; padding:0;}
+.container { max-width: 1200px; margin: 20px auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);}
+h1 { font-size: 24px; margin-bottom: 15px; }
+h2 { font-size: 20px; margin-top: 20px; }
+h3 { font-size: 16px; margin-top: 15px; }
+label { font-weight: bold; display:block; margin-top:10px; }
+input, textarea, select, button { padding:8px; margin-bottom:10px; border-radius:4px; border:1px solid #ccc; box-sizing:border-box;}
+input[type="text"], input[type="password"], input[type="number"], textarea, select { width:100%; }
+button { cursor:pointer; background:#4f46e5; color:#fff; border:none; padding:10px 20px; }
+button:hover { background:#4338ca; }
+button.delete { background:#dc2626; padding:4px 8px; font-size:12px; }
+button.delete:hover { background:#b91c1c; }
+.table-container { overflow-x:auto; margin-top:10px; }
+table { border-collapse: collapse; width:100%; margin-bottom:20px; }
+th, td { border:1px solid #ccc; padding:8px; text-align:left; }
+th { background:#f3f4f6; }
+.status { padding:10px; margin:10px 0; border-radius:4px; display:none; }
+.status.info { background:#e0f2fe; color:#0284c7; }
+.status.success { background:#dcfce7; color:#16a34a; }
+.status.error { background:#fee2e2; color:#b91c1c; }
+.hidden { display:none !important; }
+.pivot-section { background:#f9fafb; padding:15px; border-radius:6px; margin-top:20px; }
+.query-section { background:#fef3c7; padding:15px; border-radius:6px; margin-top:20px; }
+.query-item { background:#fff; padding:10px; margin:10px 0; border-radius:4px; border:1px solid #d1d5db; }
+.query-item pre { background:#1f2937; color:#f3f4f6; padding:10px; border-radius:4px; overflow-x:auto; }
+.flex-row { display:flex; gap:10px; align-items:center; }
+.flex-row > * { flex:1; }
+select[multiple] { height:150px; }
+.pivot-tag { display: inline-block; background: #4f46e5; color: white; padding: 5px 10px; margin: 5px; border-radius: 4px; }
+.pivot-tag button { background: transparent; border: none; color: white; cursor: pointer; margin-left: 5px; font-weight: bold; }
+.pivot-tag button:hover { color: #fee2e2; }
+.fix-badge { display: inline-block; background: #10b981; color: white; padding: 2px 8px; margin-left: 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+</style>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg, #eef2ff, #f8fafc);
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 40px auto;
+  padding: 24px;
+}
+
+.app-shell {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+
+.app-header {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+  padding: 24px 32px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.app-header p {
+  margin-top: 6px;
+  opacity: 0.9;
+}
+
+.section {
+  padding: 28px 32px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid #e5e7eb;
+}
+
+label {
+  font-weight: 600;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.helper {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+select, input, textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+}
+
+textarea {
+  font-family: monospace;
+}
+
+button {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+button:hover {
+  opacity: 0.95;
+}
+
+.flex {
+  display: flex;
+  gap: 12px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+</style>
+
+</head>
+<body>
+<!--
+CRITICAL FIX APPLIED:
+✅ Pivot rows MUST match the queried table
+✅ Queries are generated per-table basis
+✅ Oracle validation checks rows from the SAME table as the query
+✅ HTML structure fixed (proper tag nesting)
+
+This implements Rigger & Su's Pivoted Query Synthesis correctly:
+- Step 2: Select pivot rows from each table
+- Step 3-4: Generate & rectify expressions for those specific tables
+- Step 5: Create queries targeting the pivot row's table
+- Step 7: Validate containment of pivot rows in results from SAME table
+-->
+
+<div class="container"><div class="app-shell">
+<div class="app-header">
+  <h1>Pivot Query Synthesizer </h1>
+  <p>Generate synthetic data, explore pivots, and create correct PQS SQL queries</p>
+</div>
+
+<div class="section"><div class="section-title">① Input Mode</div><label for="inputType">Select Input Type</label>
+<select id="inputType">
+  <option value="prompt">Prompt → Schema → Data</option>
+  <option value="schema">Schema → Data</option>
+  <option value="csv">CSV Upload</option>
+</select>
+
+<!-- Prompt Input -->
+<div id="promptSection">
+  <label>Prompt:</label>
+  <textarea id="promptInput" rows="3" placeholder="Describe your database, e.g., 'employees table with name, department, salary'"></textarea>
+
+  <label>Rows per Table:</label>
+  <input type="number" id="promptRows" min="1" value="5">
+
+  <label>OpenRouter API Key:</label>
+  <input type="password" id="promptApiKey" placeholder="sk-...">
+
+<div class="api-key-help" style="margin-top:6px;">
+  <small>Don't have a key? Create one here:
+    <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">
+      https://openrouter.ai/keys
+    </a>
+  </small>
+</div>
+
+  <button id="generateSchemaBtn">Generate Schema</button>
+
+  <div class="status" id="promptStatus"></div>
+
+  <label>SQL Schema (Editable):</label>
+  <textarea id="generatedSchema" rows="8"></textarea>
+  <button id="generateDataBtn">Generate Data</button>
+</div>
+
+<!-- Schema Input -->
+</div><div class="section"><div class="section-title">② Schema Definition</div><div id="schemaSection" class="hidden">
+  
+<h3>Schema Builder (Optional)</h3>
+<button id="addTableGuiBtn">Add Table</button>
+<div id="guiSchemaBuilder"></div>
+<label>SQL Schema:</label>
+  
+  <!-- SCHEMA TEMPLATE SELECTOR -->
+  <label for="schemaTemplateSelect"><strong>Choose Schema Template:</strong></label>
+  <select id="schemaTemplateSelect">
+    <option value="users_posts">Users & Posts (Default)</option>
+    <option value="ecommerce">E-commerce Platform</option>
+    <option value="university">University Enrollment</option>
+    <option value="custom">✍️ Write My Own Schema</option>
+  </select>
+
+<textarea id="schemaInputArea" rows="6" placeholder="Paste your SQL CREATE TABLE statements here"></textarea>
+
+  <label>Rows per Table:</label>
+  <input type="number" id="schemaRows" min="1" value="5">
+
+  <label>OpenRouter API Key:</label>
+  <input type="password" id="schemaApiKey" placeholder="sk-...">
+
+<div class="api-key-help" style="margin-top:6px;">
+  <small>Don't have a key? Create one here:
+    <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">
+      https://openrouter.ai/keys
+    </a>
+  </small>
+</div>
+
+  <button id="schemaGenerateDataBtn">Generate Data</button>
+  <div class="status" id="schemaStatus"></div>
+</div>
+
+<!-- CSV Upload -->
+<div id="csvSection" class="hidden">
+  <label>Upload CSV File(s):</label>
+  <input type="file" id="csvInput" multiple accept=".csv">
+  <div class="status" id="csvStatus"></div>
+  <div id="csvPreview"></div>
+</div>
+</div>
+
+<!-- Data Output Section - MOVED OUTSIDE -->
+<div id="dataOutputSection" class="section hidden">
+  <div class="section-title">Generated Data</div>
+  <div id="dataOutput" style="min-height: 100px; border: 2px dashed #e5e7eb; padding: 20px; border-radius: 8px;">
+    <p style="color: #6b7280; text-align: center;">Data tables will appear here after generation...</p>
+  </div>
+</div>
+
+<!-- Pivot Section - FIXED HTML STRUCTURE -->
+<div class="section"><div class="section-title">③ Pivot Selection</div><div class="pivot-section">
+    <h3>Pivot Row Selection</h3>
+
+    <label>Select Pivot Table:</label>
+    <select id="pivotTableSelect">
+      <option value="">-- Select a table --</option>
+    </select>
+
+    <h3>Pivot Row Range Selection</h3>
+    <div class="flex-row">
+      <input type="number" id="pivotRangeStart" placeholder="From row #" />
+      <input type="number" id="pivotRangeEnd" placeholder="To row #" />
+      <button id="applyPivotRangeBtn">Add Range</button>
+    </div>
+
+    <label>Select Pivot Row(s) (multi-select):</label>
+    <select id="pivotRowsSelect" multiple></select>
+    <button id="applyPivotBtn">Add to Pivot Selection</button>
+    
+    <h3>Selected Pivot Rows</h3>
+    <div id="selectedPivotsContainer"></div>
+    
+    <h3>Pivot Table</h3>
+    <div id="pivotTableContainer"></div>
+  </div>
+
+  <!-- Query Generation Section -->
+  </div><div class="section"><div class="section-title">④ Query & Oracle Generation</div><div class="query-section">
+    <h3>Query Generation</h3>
+    <div class="flex-row" style="align-items:flex-start; flex-wrap:nowrap;">
+      <div>
+        <label>Query Complexity:</label>
+        <select id="queryComplexity">
+          <option value="easy">Easy</option>
+          <option value="medium">Medium</option>
+          <option value="hard">Hard</option>
+        </select>
+
+<div class="qc-info-wrap" style="position:relative; margin-top:6px;"><div style="display:flex;align-items:center;gap:8px;">
+  <button type="button"
+    onclick="document.getElementById('qcInfoBox').style.display =
+      (document.getElementById('qcInfoBox').style.display==='block'?'none':'block');"
+    style="background:#22c55e;color:#fff;border-radius:50%;width:24px;height:24px;
+           border:none;font-weight:bold;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+    ?
+  </button>
+  <span>What does this mean?</span>
+</div>
+
+<div id="qcInfoBox" style="display:none; position:absolute; top:calc(100% + 8px); left:0; z-index:50; background:#fff;border:1px solid #d1d5db;border-radius:10px; padding:12px;max-width:420px;box-shadow:0 8px 24px rgba(0,0,0,.12);">
+  <b>Easy ⭐</b>
+  <ul>
+    <li>Single-table SELECT</li>
+    <li>Basic WHERE filters</li>
+    <li>ORDER BY and LIMIT</li>
+  </ul>
+  <span style="color:#6b7280;">No JOINs, no aggregates, no subqueries.</span>
+  <hr>
+  <b>Medium ⭐⭐</b>
+  <ul>
+    <li>JOINs across tables</li>
+    <li>GROUP BY with COUNT / SUM / AVG</li>
+    <li>Simple subqueries</li>
+  </ul>
+  <hr>
+  <b>Hard ⭐⭐⭐</b>
+  <ul>
+    <li>Nested subqueries</li>
+    <li>CASE WHEN logic</li>
+    <li>Window functions (ROW_NUMBER, RANK)</li>
+  </ul>
+</div>
+</div>
+
+      </div>
+      <div>
+        <label>Number of Queries:</label>
+        <input type="number" id="numQueries" min="1" max="20" value="3">
+      </div>
+    </div>
+    
+    <label for="queryUserPrompt">Query Instructions (Optional)</label>
+    <div class="helper">
+      Describe which rows to include/exclude, sorting, limits, subqueries, window functions, CASE logic, etc.
+    </div>
+    <textarea
+      id="queryUserPrompt"
+      rows="6"
+      placeholder="Example:
+- Return top 5 customers by total purchase
+- Sort products by descending price
+- Include subqueries to filter orders with total > 200
+- Include window functions to rank products by quantity sold
+- Include CASE statements to categorize orders"
+    ></textarea>
+
+    
+    <label for="queryApiKey">OpenRouter API Key</label>
+    <input type="password" id="queryApiKey" placeholder="sk-..." />
+
+<div class="api-key-help" style="margin-top:6px;">
+  <small>Don't have a key? Create one here:
+    <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">
+      https://openrouter.ai/keys
+    </a>
+  </small>
+</div>
+
+    <button id="generateQueriesBtn">Generate Queries</button>
+    <div class="status" id="queryStatus"></div>
+    <div id="queriesOutput"></div>
+  </div>
+</div>
+</div>
+
+<script>
+// --- Global State ---
+let allTableData = {};
+let pivotRows = [];
+
+// --- Sections ---
+const inputType = document.getElementById("inputType");
+const promptSection = document.getElementById("promptSection");
+const schemaSection = document.getElementById("schemaSection");
+const csvSection = document.getElementById("csvSection");
+const dataOutputSection = document.getElementById("dataOutputSection");
+
+// --- Show section ---
+inputType.addEventListener("change", ()=>{
+
+  // Reset state on input mode change
+  allTableData = {};
+  pivotRows = [];
+  document.getElementById("dataOutput").innerHTML = "";
+  document.getElementById("queriesOutput").innerHTML = "";
+  document.getElementById("selectedPivotsContainer").innerHTML = "";
+  document.getElementById("pivotTableContainer").innerHTML = "";
+
+  promptSection.classList.add("hidden");
+  schemaSection.classList.add("hidden");
+  csvSection.classList.add("hidden");
+  dataOutputSection.classList.add("hidden");
+
+  if(inputType.value === "prompt") promptSection.classList.remove("hidden");
+  else if(inputType.value === "schema") schemaSection.classList.remove("hidden");
+  else if(inputType.value === "csv") csvSection.classList.remove("hidden");
+});
+
+// --- Utility ---
+function showStatus(el,msg,type="info"){ el.textContent=msg; el.className=`status ${type}`; el.style.display="block"; }
+
+// ==========================
+// PQS LOGIC (from Rigger & Su)
+// CRITICAL FIX: Ensures queries target the SAME table as pivot rows
+// ==========================
+
+function pqsRandChoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+function pqsToNumberIfPossible(v){
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) return Number(v);
+  return null;
+}
+
+// 3-valued boolean helpers (TRUE/FALSE/NULL)
+function pqsBoolAnd(a,b){
+  if(a===false||b===false) return false;
+  if(a===null||b===null) return null;
+  return true;
+}
+function pqsBoolOr(a,b){
+  if(a===true||b===true) return true;
+  if(a===null||b===null) return null;
+  return false;
+}
+function pqsBoolNot(a){
+  if(a===null) return null;
+  return !a;
+}
+
+// Generate a simple atomic predicate on a single column.
+function pqsGenerateAtomicPredicate(table, col, value){
+  // Handle NULL explicitly
+  if(value === null || value === undefined || value === ''){
+    return { kind:'isnull', table, col };
+  }
+
+  const n = pqsToNumberIfPossible(value);
+  if(n !== null){
+    const ops = ['=', '!=', '>', '>=', '<', '<='];
+    return { kind:'cmp', table, col, op:pqsRandChoice(ops), lit:n };
+  }
+
+  // string-like
+  const ops = ['=', '!=', 'LIKE'];
+  const op = pqsRandChoice(ops);
+  if(op === 'LIKE'){
+    const s = String(value);
+    const needle = s.length ? s.slice(0, Math.min(2, s.length)) : s;
+    return { kind:'like', table, col, pat:`%${needle}%` };
+  }
+  return { kind:'scmp', table, col, op, lit:String(value) };
+}
+
+// Evaluate atomic predicate on a pivot row value with SQL-like NULL behavior.
+function pqsEvalAtomic(atom, row){
+  const v = row?.[atom.col];
+
+  if(atom.kind === 'isnull'){
+    return (v === null || v === undefined || v === '') ? true : false;
+  }
+
+  // If either side is NULL in SQL comparisons, result is NULL (unknown)
+  if(v === null || v === undefined || v === '') return null;
+
+  if(atom.kind === 'cmp'){
+    const vn = pqsToNumberIfPossible(v);
+    if(vn === null) return null;
+    switch(atom.op){
+      case '=':  return vn === atom.lit;
+      case '!=': return vn !== atom.lit;
+      case '>':  return vn >  atom.lit;
+      case '>=': return vn >= atom.lit;
+      case '<':  return vn <  atom.lit;
+      case '<=': return vn <= atom.lit;
+    }
+  }
+
+  if(atom.kind === 'scmp'){
+    const vs = String(v);
+    switch(atom.op){
+      case '=':  return vs === atom.lit;
+      case '!=': return vs !== atom.lit;
+    }
+  }
+
+  if(atom.kind === 'like'){
+    const vs = String(v);
+    const inner = String(atom.pat).replace(/^%/,'').replace(/%$/,'');
+    if(!inner) return true;
+    return vs.includes(inner);
+  }
+
+  return null;
+}
+
+// Build a small boolean expression tree (AND/OR/NOT) from atomic predicates.
+function pqsBuildRandomExpr(table, row, maxDepth=2){
+  const cols = Object.keys(row||{});
+  const col = pqsRandChoice(cols);
+  const atom = pqsGenerateAtomicPredicate(table, col, row[col]);
+
+  if(maxDepth <= 0){
+    return { type:'atom', atom };
+  }
+
+  const nodeTypes = ['atom','not','and','or'];
+  const t = pqsRandChoice(nodeTypes);
+  if(t === 'atom') return { type:'atom', atom };
+  if(t === 'not') return { type:'not', child: { type:'atom', atom } };
+
+  const left = { type:'atom', atom };
+  const rightAtomCol = pqsRandChoice(cols);
+  const rightAtom = pqsGenerateAtomicPredicate(table, rightAtomCol, row[rightAtomCol]);
+  const right = { type:'atom', atom:rightAtom };
+  return { type:t, left, right };
+}
+
+function pqsEvalExpr(expr, row){
+  switch(expr.type){
+    case 'atom': return pqsEvalAtomic(expr.atom, row);
+    case 'not':  return pqsBoolNot(pqsEvalExpr(expr.child, row));
+    case 'and':  return pqsBoolAnd(pqsEvalExpr(expr.left, row), pqsEvalExpr(expr.right, row));
+    case 'or':   return pqsBoolOr(pqsEvalExpr(expr.left, row), pqsEvalExpr(expr.right, row));
+  }
+  return null;
+}
+
+function pqsExprToSQL(expr){
+  const atomToSQL = (a)=>{
+    if(a.kind==='isnull') return `${a.table}.${a.col} IS NULL`;
+    if(a.kind==='cmp')   return `${a.table}.${a.col} ${a.op} ${a.lit}`;
+    if(a.kind==='scmp')  return `${a.table}.${a.col} ${a.op} '${String(a.lit).replace(/'/g,"''")}'`;
+    if(a.kind==='like')  return `${a.table}.${a.col} LIKE '${String(a.pat).replace(/'/g,"''")}'`;
+    return '1=1';
+  };
+  switch(expr.type){
+    case 'atom': return atomToSQL(expr.atom);
+    case 'not':  return `NOT (${pqsExprToSQL(expr.child)})`;
+    case 'and':  return `(${pqsExprToSQL(expr.left)}) AND (${pqsExprToSQL(expr.right)})`;
+    case 'or':   return `(${pqsExprToSQL(expr.left)}) OR (${pqsExprToSQL(expr.right)})`;
+  }
+  return '1=1';
+}
+
+// Rectify expression to yield TRUE for the pivot row (Algorithm 3 in the paper)
+function pqsRectifyExpr(expr, row){
+  const v = pqsEvalExpr(expr, row);
+  if(v === true) return { type:'atomwrap', sql: pqsExprToSQL(expr) };
+  if(v === false) return { type:'atomwrap', sql: `NOT (${pqsExprToSQL(expr)})` };
+  // FIXED: NULL case - use IS NOT NULL to force TRUE in boolean context
+  return { type:'atomwrap', sql: `(${pqsExprToSQL(expr)}) IS NOT NULL` };
+}
+
+// CRITICAL FIX: Build WHERE clause ONLY for pivot rows from the SAME table
+function pqsBuildWhereForPivotRows(targetTable, targetPivotRows){
+  // Filter to ensure we only use pivot rows from the target table
+  const relevantPivots = targetPivotRows.filter(pr => pr.table === targetTable);
+  
+  if (relevantPivots.length === 0) {
+    console.warn(`No pivot rows for table ${targetTable}`);
+    return '1=1'; // Fallback to fetch all rows
+  }
+  
+  // OR over pivot rows: ensures every selected pivot row must appear in the result set
+  const disj = relevantPivots.map(pr=>{
+    const row = allTableData?.[pr.table]?.[pr.index];
+    const expr = pqsBuildRandomExpr(pr.table, row, 2);
+    const rect = pqsRectifyExpr(expr, row);
+    return `(${rect.sql})`;
+  });
+  return disj.length ? disj.join(' OR ') : '1=1';
+}
+
+function pqsBuildSQL(table, whereClause, complexity){
+  const cols = Object.keys(allTableData?.[table]?.[0]||{});
+  const firstCol = cols[0] || '*';
+
+  if(complexity === 'easy'){
+    return `SELECT ${table}.* FROM ${table} WHERE ${whereClause}`;
+  }
+
+  if(complexity === 'medium'){
+    // still single-table, but adds a scalar subquery (does not filter pivot rows)
+    return `SELECT ${table}.*, (SELECT COUNT(*) FROM ${table}) AS total_rows FROM ${table} WHERE ${whereClause} ORDER BY ${table}.${firstCol}`;
+  }
+
+  // hard: add CASE + window function; still no extra filtering
+  return `SELECT ${table}.*, CASE WHEN ${table}.${firstCol} IS NULL THEN 'NULL' ELSE 'NON_NULL' END AS ${firstCol}_flag, ROW_NUMBER() OVER (ORDER BY ${table}.${firstCol}) AS rn FROM ${table} WHERE ${whereClause}`;
+}
+
+function pqsGroupPivotRowsByTable(){
+  const groups = {};
+  pivotRows.forEach(pr=>{
+    if(!groups[pr.table]) groups[pr.table] = [];
+    groups[pr.table].push(pr);
+  });
+  return groups;
+}
+
+// --- Parse SQL ---
+/*
+
+  const tables=[];
+  const tableMatches=[...ddl.matchAll(/CREATE TABLE (\w+)[\s\S]*?\(([\s\S]*?)\);/gi)];
+  tableMatches.forEach(m=>{
+    const tableName=m[1];
+    const colsText=m[2];
+    const columns=[];
+    colsText.split(",").forEach(line=>{
+      line=line.trim();
+      if(!line || line.toUpperCase().startsWith("PRIMARY") || line.toUpperCase().startsWith("FOREIGN")) return;
+      //const parts=line.split(/\s+/);
+      //const colName=parts[0].replace(/`/g,"");
+      const parts = line.trim().split(/\s+/);
+if(parts.length < 2) return;
+      const colName = parts[0]
+  .replace(/`/g,"")       // remove backticks
+  .replace(/^\d+\)\s*///, "") // remove numbering like "1) ", "2) "
+  //.trim();                 // remove extra spaces
+
+
+
+      //const type=parts[1]||"TEXT";
+      //columns.push({name:colName,type});
+   // });
+   // tables.push({name:tableName,columns});
+ /// });
+  //return tables;
+//}
+
+
+function parseSqlSchema(ddl){
+  const tables = [];
+  const tableMatches = [...ddl.matchAll(/CREATE TABLE (\w+)[\s\S]*?\(([\s\S]*?)\);/gi)];
+
+  tableMatches.forEach(m => {
+    const tableName = m[1];
+    const colsText = m[2];
+    const columns = [];
+
+    colsText.split(",").forEach(line => {
+      line = line.trim();
+      if (!line) return;
+      const upper = line.toUpperCase();
+      if (upper.startsWith("PRIMARY") || upper.startsWith("FOREIGN") || upper.startsWith("CONSTRAINT")) return;
+
+      const parts = line.split(/\s+/);
+      if (parts.length < 2) return; // skip invalid lines
+
+      // Clean column name
+      const colName = parts[0]
+        .replace(/`/g, "")       // remove backticks
+        .replace(/^\d+\)\s*/, "") // remove numbering like "1) ", "2) "
+        .trim();
+
+      if (!colName) return; // skip empty column names
+
+      // Join the rest as type (e.g., VARCHAR(255))
+      const type = parts.slice(1).join(" ");
+
+      columns.push({ name: colName, type });
+    });
+
+    tables.push({ name: tableName, columns });
+  });
+
+  return tables;
+}
+
+
+
+
+// --- Render Tables ---
+function renderTables(data, container){
+  console.log("renderTables called with data:", data);
+  console.log("Container element:", container);
+  
+  container.innerHTML="";
+  allTableData=JSON.parse(JSON.stringify(data));
+  
+  console.log("Number of tables:", Object.keys(data).length);
+
+  for(const tableName in data){
+    const rows=data[tableName];
+    console.log(`Rendering table: ${tableName}, rows:`, rows.length);
+    
+    if(!rows.length) {
+      console.warn(`Skipping table ${tableName} - no rows`);
+      continue;
+    }
+    
+    const wrapper=document.createElement("div"); wrapper.className="table-container";
+    const title=document.createElement("h3"); title.textContent=tableName; wrapper.appendChild(title);
+
+    const table=document.createElement("table");
+    const thead=document.createElement("thead"); const trHead=document.createElement("tr");
+    Object.keys(rows[0]).forEach(col=>{ const th=document.createElement("th"); th.textContent=col; trHead.appendChild(th); });
+    trHead.appendChild(document.createElement("th")).textContent="Action"; thead.appendChild(trHead); table.appendChild(thead);
+
+    const tbody=document.createElement("tbody");
+    rows.forEach((row,idx)=>{
+      const tr=document.createElement("tr");
+      Object.keys(row).forEach(col=>{ const td=document.createElement("td"); td.textContent=row[col]; tr.appendChild(td); });
+      const tdAction=document.createElement("td"); const delBtn=document.createElement("button");
+      delBtn.textContent="Delete"; delBtn.className="delete"; delBtn.onclick=()=>{deleteRow(tableName,idx);}
+      tdAction.appendChild(delBtn); tr.appendChild(tdAction); tbody.appendChild(tr);
+    });
+    table.appendChild(tbody); wrapper.appendChild(table); container.appendChild(wrapper);
+  }
+  
+  console.log("Finished rendering. Container HTML length:", container.innerHTML.length);
+  updatePivotDropdown();
+}
+
+// --- Delete Row ---
+function deleteRow(tableName,rowIndex){
+  if(!allTableData[tableName]) return;
+  allTableData[tableName].splice(rowIndex,1);
+  renderTables(allTableData,document.getElementById("dataOutput"));
+
+  pivotRows=pivotRows.filter(pr=>!(pr.table===tableName && pr.index===rowIndex));
+  updatePivotTable();
+}
+
+// --- Update Pivot Dropdown ---
+function updatePivotDropdown(){
+  const tableSelect=document.getElementById("pivotTableSelect");
+  const rowSelect=document.getElementById("pivotRowsSelect");
+  tableSelect.innerHTML='<option value="">-- Select a table --</option>';
+  for(const t in allTableData){ const opt=document.createElement("option"); opt.value=t; opt.textContent=t; tableSelect.appendChild(opt);}
+  rowSelect.innerHTML="";
+}
+
+// --- Populate Pivot Rows ---
+document.getElementById("pivotTableSelect").addEventListener("change",e=>{
+  const sel=e.target.value; const rowSelect=document.getElementById("pivotRowsSelect");
+  rowSelect.innerHTML="";
+  if(!sel || !allTableData[sel]) return;
+  allTableData[sel].forEach((row,idx)=>{
+    const opt=document.createElement("option");
+    opt.value=JSON.stringify({table:sel,index:idx});
+    opt.textContent=`Row ${idx} - ${Object.entries(row).map(([k,v])=>k+":"+v).join(", ")}`;
+    rowSelect.appendChild(opt);
+  });
+});
+
+// --- Apply Pivot Selection ---
+document.getElementById("applyPivotBtn").addEventListener("click",()=>{
+  const rowSelect=document.getElementById("pivotRowsSelect");
+  const selectedOptions=Array.from(rowSelect.selectedOptions);
+  selectedOptions.forEach(opt=>{
+    const val=JSON.parse(opt.value);
+    if(!pivotRows.some(pr=>pr.table===val.table && pr.index===val.index)) pivotRows.push(val);
+  });
+  updateSelectedPivots();
+  updatePivotTable();
+});
+
+// --- Update Selected Pivots Display ---
+function updateSelectedPivots(){
+  const container=document.getElementById("selectedPivotsContainer");
+  container.innerHTML="";
+  if(!pivotRows.length){ container.innerHTML="<p>No pivot rows selected.</p>"; return; }
+  pivotRows.forEach((pr,idx)=>{
+    const row=allTableData[pr.table][pr.index];
+    const desc=Object.entries(row).map(([k,v])=>`${k}:${v}`).join(", ");
+    const tag=document.createElement("span"); tag.className="pivot-tag";
+    tag.innerHTML=`${pr.table} [${pr.index}] - ${desc} <button onclick="removePivot(${idx})">×</button>`;
+    container.appendChild(tag);
+  });
+}
+
+// --- Remove Pivot ---
+function removePivot(idx){ pivotRows.splice(idx,1); updateSelectedPivots(); updatePivotTable(); }
+
+// --- Update Pivot Table ---
+function updatePivotTable(){
+  const container=document.getElementById("pivotTableContainer");
+  container.innerHTML="";
+  if(!pivotRows.length){ container.innerHTML="<p>No pivot rows selected.</p>"; return; }
+
+  const grouped={};
+  pivotRows.forEach(pr=>{ if(!grouped[pr.table]) grouped[pr.table]=[]; grouped[pr.table].push(allTableData[pr.table][pr.index]); });
+  for(const t in grouped){
+    const rows=grouped[t]; if(!rows.length) continue;
+    const wrapper=document.createElement("div"); wrapper.className="table-container";
+    const title=document.createElement("h4"); title.textContent=t; wrapper.appendChild(title);
+
+    const table=document.createElement("table"); const thead=document.createElement("thead"); const trHead=document.createElement("tr");
+    Object.keys(rows[0]).forEach(col=>{ const th=document.createElement("th"); th.textContent=col; trHead.appendChild(th); });
+    thead.appendChild(trHead); table.appendChild(thead);
+
+    const tbody=document.createElement("tbody");
+    rows.forEach(r=>{ const tr=document.createElement("tr"); Object.values(r).forEach(v=>{ const td=document.createElement("td"); td.textContent=v; tr.appendChild(td); }); tbody.appendChild(tr); });
+    table.appendChild(tbody); wrapper.appendChild(table); container.appendChild(wrapper);
+  }
+}
+
+// --- OpenRouter API Call ---
+async function callOpenRouter(prompt,apiKey){
+  const res=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":`Bearer ${apiKey}`},
+    body:JSON.stringify({model:"mistralai/mistral-7b-instruct",messages:[{role:"user",content:prompt}]})
+  });
+  if(!res.ok){ const txt=await res.text(); throw new Error(txt); }
+  const data=await res.json();
+  return data.choices?.[0]?.message?.content?.trim() || "";
+}
+
+// --- Sanitize JSON ---
+function sanitizeJson(raw){
+  raw = (raw || "").trim();
+  raw = raw.replace(/```(?:json|sql)?/gi, "").replace(/```/g, "").trim();
+  const first = raw.search(/[\[{]/);
+  if(first === -1) return "{}";
+
+  const open = raw[first];
+  const close = open === '{' ? '}' : ']';
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  for (let i = first; i < raw.length; i++) {
+    const ch = raw[i];
+    if (inStr) {
+      if (esc) { esc = false; continue; }
+      if (ch === '\\') { esc = true; continue; }
+      if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') { inStr = true; continue; }
+    if (ch === open) depth++;
+    if (ch === close) {
+      depth--;
+      if (depth === 0) {
+        return raw.slice(first, i + 1);
+      }
+    }
+  }
+
+  const lastObj = raw.lastIndexOf("}");
+  const lastArr = raw.lastIndexOf("]");
+  const last = Math.max(lastObj, lastArr);
+  if(last === -1 || last <= first) return "{}";
+  return raw.slice(first, last + 1);
+}
+
+
+
+// --- Sanitize SQL DDL ---
+
+function sanitizeDDL(raw) {
+  if (!raw) return "";
+
+  // Remove markdown blocks if any
+  raw = raw.replace(/```[\s\S]*?```/g, "");
+
+  // STRICT: extract ONLY CREATE TABLE statements
+  const matches = raw.match(/CREATE\s+TABLE\s+[\s\S]*?;/gi);
+
+  if (!matches) return "";
+
+  return matches.join("\n\n");
+}
+
+
+
+
+// --- Generate Schema from Prompt ---
+document.getElementById("generateSchemaBtn").addEventListener("click",async ()=>{
+  const prompt=document.getElementById("promptInput").value.trim();
+  const apiKey=document.getElementById("promptApiKey").value.trim();
+  if(!prompt || !apiKey) return alert("Enter prompt and API key");
+  showStatus(document.getElementById("promptStatus"),"Generating schema...","info");
+  try{
+
+const basePrompt = `
+You are a SQL compiler.
+
+RULES:
+- Output ONLY valid SQL
+- NO explanations
+- NO comments
+- NO markdown
+- NO text before or after
+- ONLY CREATE TABLE / CREATE INDEX statements
+- Every statement MUST end with a semicolon
+
+Description:
+${prompt}
+`;
+
+
+
+
+    //const basePrompt=`Convert the following description into SQL DDL statements (CREATE TABLE) for all tables. Output ONLY SQL statements. Description: "${prompt}"`;
+    const ddl=await callOpenRouter(basePrompt,apiKey);
+    //const cleanDdl=ddl.replace(/```sql\n?/g,"").replace(/```\n?/g,"");
+   const cleanDdl = sanitizeDDL(ddl);
+
+   if (!cleanDdl.trim()) {
+  throw new Error("Model did not return valid CREATE TABLE statements");
+}
+
+    document.getElementById("generatedSchema").value=cleanDdl;
+    showStatus(document.getElementById("promptStatus"),"Schema generated!","success");
+  }catch(err){ showStatus(document.getElementById("promptStatus"),`Error: ${err.message}`,"error"); }
+});
+
+
+function validateGeneratedData(data, tables) {
+  if (typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("Top-level JSON must be an object");
+  }
+
+  let hasValidTable = false;
+
+  tables.forEach(t => {
+    const rows = data[t.name];
+
+    if (!Array.isArray(rows)) return;
+
+    rows.forEach(row => {
+      t.columns.forEach(col => {
+        if (!(col.name in row)) {
+          throw new Error(
+            `Missing column "${col.name}" in table "${t.name}"`
+          );
+        }
+      });
+    });
+
+    hasValidTable = true;
+  });
+
+  if (!hasValidTable) {
+    throw new Error("No valid table data returned by model");
+  }
+}
+
+
+
+
+
+// --- Generate Data ---
+async function generateDataFromDDL(ddl,numRows,apiKey,statusEl){
+  console.log("=== generateDataFromDDL called ===");
+  console.log("DDL:", ddl);
+  console.log("numRows:", numRows);
+  
+  showStatus(statusEl,"Generating data...","info");
+  const tables=parseSqlSchema(ddl);
+  console.log("Parsed tables:", tables);
+  
+  //let prompt=`Generate realistic data for these tables. Rows per table: ${numRows}. Output ONLY valid JSON.\n`;
+  let prompt = `
+You are a data generator.
+
+RULES:
+- Output ONLY valid JSON
+- NO explanations
+- NO markdown
+- NO comments
+- NO text outside JSON
+- Top-level MUST be an object
+- Each key MUST be a table name
+- Each value MUST be an array of row objects
+- Every row object MUST include ALL columns
+
+Format example:
+{
+  "employees": [
+    { "id": 1, "name": "John", "salary": 50000 }
+  ]
+}
+
+Tables:
+`;
+
+  
+  
+  //tables.forEach(t=>{ prompt+=`Table: ${t.name}\nColumns: ${t.columns.map(c=>c.name).join(", ")}\n`; });
+  
+tables.forEach(t => {
+  const cleanColumns = t.columns.map(c => 
+    c.name
+      .trim()
+      .replace(/^\d+\)\s*/, "")   // remove numbering
+      .replace(/["'`]/g,"")       // remove quotes
+      .replace(/\s+/g,"_")        // replace spaces with _
+      .toLowerCase()
+  ).filter(Boolean);
+
+  prompt += `
+Table name: ${t.name}
+Columns: ${cleanColumns.join(", ")}
+`;
+});
+
+
+
+
+
+
+
+
+
+
+
+  try{
+    const rawText=await callOpenRouter(prompt,apiKey);
+    console.log("Raw API response:", rawText);
+    
+    const cleanText=sanitizeJson(rawText);
+    console.log("Cleaned JSON:", cleanText);
+    
+    //const parsed=JSON.parse(cleanText);
+    //console.log("Parsed data:", parsed);
+
+    let parsed = JSON.parse(cleanText);
+console.log("Parsed data (raw):", parsed);
+validateGeneratedData(parsed, tables);
+
+
+// 🔧 NORMALIZE DATA SHAPE
+/*if (Array.isArray(parsed)) {
+  const obj = {};
+  parsed.forEach(t => {
+    if (t.table && Array.isArray(t.rows)) {
+      obj[t.table] = t.rows;
+    }
+  });
+  parsed = obj;
+}
+
+if (parsed.tables && typeof parsed.tables === "object") {
+  parsed = parsed.tables;
+}
+
+console.log("Parsed data (normalized):", parsed);
+*/
+// SAFETY CHECK
+if (!parsed || typeof parsed !== "object" || !Object.keys(parsed).length) {
+  throw new Error("No valid table data returned by model");
+}
+
+    
+    const dataOutputContainer = document.getElementById("dataOutput");
+    console.log("Data output container:", dataOutputContainer);
+    
+    renderTables(parsed, dataOutputContainer);
+    
+    
+  dataOutputContainer.style.display = "block";
+dataOutputContainer.style.visibility = "visible";
+dataOutputContainer.style.opacity = "1";
+
+    
+    // CRITICAL: Show the data output section
+    const dataOutputSection = document.getElementById("dataOutputSection");
+    console.log("Data output section before show:", dataOutputSection, "classes:", dataOutputSection.className);
+    dataOutputSection.classList.remove("hidden");
+    console.log("Data output section after show:", "classes:", dataOutputSection.className);
+    
+    showStatus(statusEl,"Data generated!","success");
+  }catch(err){ 
+    console.error("Error in generateDataFromDDL:", err);
+    showStatus(statusEl,`Error generating data: ${err.message}`,"error"); 
+  }
+}
+
+document.getElementById("generateDataBtn").addEventListener("click",()=>{
+  const ddl=document.getElementById("generatedSchema").value.trim();
+  const numRows=parseInt(document.getElementById("promptRows").value) || 5;
+  const apiKey=document.getElementById("promptApiKey").value.trim();
+  if(!ddl||!apiKey) return alert("Enter schema and API key");
+  
+  // Show data output section immediately
+  document.getElementById("dataOutputSection").classList.remove("hidden");
+  
+  generateDataFromDDL(ddl,numRows,apiKey,document.getElementById("promptStatus"));
+});
+
+document.getElementById("schemaGenerateDataBtn").addEventListener("click",()=>{
+  const ddl=document.getElementById("schemaInputArea").value.trim();
+  const numRows=parseInt(document.getElementById("schemaRows").value)||5;
+  const apiKey=document.getElementById("schemaApiKey").value.trim();
+  if(!ddl||!apiKey) return alert("Enter schema and API key");
+  
+  // Show data output section immediately
+  document.getElementById("dataOutputSection").classList.remove("hidden");
+  
+  generateDataFromDDL(ddl,numRows,apiKey,document.getElementById("schemaStatus"));
+});
+
+// --- CSV Upload ---
+document.getElementById("csvInput").addEventListener("change",async e=>{
+  const files=Array.from(e.target.files);
+  if(!files.length) return;
+  const csvData={};
+  for(const file of files){
+    const t=file.name.replace(".csv","");
+    const text=await file.text();
+    const rows=text.split(/\r?\n/).filter(r=>r.trim()!=="");
+    if(!rows.length) continue;
+    const headers=rows[0].split(",").map(h=>h.trim());
+    const dataRows=rows.slice(1).map(r=>{ const vals=r.split(","); const obj={}; headers.forEach((h,i)=>obj[h]=vals[i]||""); return obj; });
+    csvData[t]=dataRows;
+  }
+  renderTables(csvData,document.getElementById("dataOutput"));
+  dataOutputSection.classList.remove("hidden");
+  showStatus(document.getElementById("csvStatus"),"CSV loaded successfully!","success");
+});
+
+// --- Generate Queries (FULLY FIXED) ---
+document.getElementById("generateQueriesBtn").addEventListener("click",async ()=>{
+  // Clear previously generated queries
+  document.getElementById("queriesOutput").innerHTML = "";
+
+  if(!pivotRows.length) return alert("Select pivot rows first!");
+  const complexity=document.getElementById("queryComplexity").value;
+  const userQueryPrompt = document.getElementById("queryUserPrompt")?.value.trim();
+  const numQueries=parseInt(document.getElementById("numQueries").value)||3;
+  const apiKey = document.getElementById("queryApiKey")?.value.trim();
+  if (!apiKey) return alert("Please enter your OpenRouter API key.");
+  showStatus(document.getElementById("queryStatus"),"Generating PQS queries...","info");
+
+  // CRITICAL FIX: Group pivots by table FIRST
+  const groups = pqsGroupPivotRowsByTable();
+  const tables = Object.keys(groups);
+  if(!tables.length) return alert("Select pivot rows first!");
+
+  // FIXED: Generate queries per table, ensuring pivot rows match query table
+  const sqlItems = [];
+  for(let i=0;i<numQueries;i++){
+    const t = tables[i % tables.length];
+    const tablePivots = groups[t]; // Only pivots from THIS table
+    const whereClause = pqsBuildWhereForPivotRows(t, tablePivots);
+    const sql = pqsBuildSQL(t, whereClause, complexity);
+    
+    // Store the CORRECT pivot rows for oracle validation
+    sqlItems.push({ 
+      sql, 
+      table: t,
+      pivots: tablePivots  // These pivots are from the SAME table as the query
+    });
+  }
+
+  let context="Database Schema:\n";
+  for(const t in allTableData){
+    const cols=Object.keys(allTableData[t][0]||{});
+    context+=`Table: ${t}\nColumns: ${cols.join(",")}\n\n`;
+  }
+  context += "All Available Data (JSON):\n"+JSON.stringify(allTableData,null,2)+"\n\n";
+
+  const fixedSqlBlock = sqlItems.map((it,idx)=>`#${idx+1} (Table: ${it.table})\n${it.sql}`).join("\n\n");
+
+  const qPrompt = `${context}
+
+PQS (Pivoted Query Synthesis) RULES:
+- The SQL statements below are FIXED and MUST NOT be modified.
+- Compute the oracle by executing each SQL over the provided JSON data.
+- Oracle MUST contain ACTUAL VALUES from the data (no placeholders).
+- Return up to 10 rows per oracle.
+
+USER QUERY INSTRUCTIONS (optional, for the DESCRIPTION only):
+${(userQueryPrompt && userQueryPrompt.length>0) ? userQueryPrompt : "(none)"}
+
+FIXED SQL STATEMENTS (DO NOT CHANGE):
+${fixedSqlBlock}
+
+Output ONLY valid JSON in this exact shape:
+{
+  "queries": [
+    {
+      "sql": "(exactly as given)",
+      "description": "...",
+      "oracle": [ {"columnA": "value", "columnB": "value"} ]
+    }
+  ]
+}
+
+IMPORTANT ORACLE FORMAT RULES:
+- The oracle MUST be an array of ROW OBJECTS (each object represents a row).
+- Use the actual selected/output column names as keys (e.g., {"id": 4, "name": "Emily"}).
+- Do NOT use a vertical format like {"col":"id","value":4}.
+- If the query selects only one column (e.g., SELECT id ...), each oracle row must still be a row object like {"id": 4}.
+`;
+
+  try{
+    const rawText=await callOpenRouter(qPrompt,apiKey);
+    const cleanText=sanitizeJson(rawText);
+    const parsed=JSON.parse(cleanText);
+    const out = (parsed.queries||[]).map((q,idx)=>{
+      // CRITICAL FIX: Attach the CORRECT pivot rows (from same table as query)
+      q._pivotRows = sqlItems[idx]?.pivots || [];
+      q._queryTable = sqlItems[idx]?.table || "";
+      return q;
+    });
+    displayQueries(out);
+    showStatus(document.getElementById("queryStatus"),"PQS queries generated!","success");
+  }catch(err){
+    showStatus(document.getElementById("queryStatus"),`Error: ${err.message}`,"error");
+  }
+});
+
+
+// --- Oracle Auto-Fix (Schema-only Oracle Protection) ---
+function normalizeOracle(sql, oracle) {
+  if (!Array.isArray(oracle) || oracle.length === 0) return oracle;
+
+  const firstRow = oracle[0];
+  const keys = Object.keys(firstRow);
+
+  // Detect schema-only oracle (e.g., { column1: 'customer_id' })
+  if (keys.length === 1 && keys[0].toLowerCase().includes("column")) {
+    const selectMatch = sql.match(/select([\s\S]*?)from/i);
+    if (!selectMatch) return oracle;
+
+    const cols = selectMatch[1]
+      .split(",")
+      .map(c => c.trim().split(/\s+as\s+/i).pop())
+      .map(c => c.replace(/^[a-zA-Z0-9_]+\./, ""));
+
+    return [
+      Object.fromEntries(cols.map(c => [c, "<expected_value>"]))
+    ];
+  }
+  return oracle;
+}
+
+
+// --- Display Queries (FULLY FIXED) ---
+function displayQueries(queries){
+  const pivotCheckEnabled = true;
+  const container=document.getElementById("queriesOutput"); container.innerHTML="";
+  if(!queries.length){ container.innerHTML="<p>No queries generated.</p>"; return; }
+  queries.forEach((q,idx)=>{
+    const item=document.createElement("div"); item.className="query-item";
+    const title=document.createElement("h4"); 
+    title.textContent=`Query ${idx+1}`;
+    if(q._queryTable) {
+      const tableBadge = document.createElement("span");
+      tableBadge.style.cssText = "background:#3b82f6;color:white;padding:2px 8px;margin-left:8px;border-radius:4px;font-size:11px;";
+      tableBadge.textContent = `Table: ${q._queryTable}`;
+      title.appendChild(tableBadge);
+    }
+    item.appendChild(title);
+    if(q.description){ const p=document.createElement("p"); p.textContent=q.description; item.appendChild(p); }
+    const sqlLabel=document.createElement("strong"); sqlLabel.textContent="SQL:"; item.appendChild(sqlLabel);
+
+    const copyBtn=document.createElement("button");
+    copyBtn.textContent="Copy SQL";
+    copyBtn.style.marginBottom="6px";
+    copyBtn.onclick=()=>{
+      navigator.clipboard.writeText(q.sql||"");
+      copyBtn.textContent="Copied!";
+      setTimeout(()=>copyBtn.textContent="Copy SQL",1500);
+    };
+    item.appendChild(copyBtn);
+
+    const sqlPre=document.createElement("pre"); sqlPre.textContent=q.sql||"No SQL"; item.appendChild(sqlPre);
+
+    // --- ORACLE VALIDATION (FULLY FIXED) ---
+    let oracleStatus = null;
+    if (pivotCheckEnabled && q.oracle && q._pivotRows) {
+      const pivotsForThisQuery = q._pivotRows; // These are from the CORRECT table
+      const oracleCheck = checkPivotContainment(q.oracle, pivotsForThisQuery);
+      oracleStatus = oracleCheck;
+      const statusDiv = document.createElement("div");
+      statusDiv.style.margin = "8px 0";
+      statusDiv.style.fontWeight = "bold";
+
+      if (oracleCheck.passed) {
+        statusDiv.textContent = "✅ Oracle PASSED (all pivot rows present)";
+        statusDiv.style.color = "green";
+      } else {
+        statusDiv.textContent =
+          "❌ Oracle FAILED – missing pivot rows: " +
+          oracleCheck.missing.map(r => JSON.stringify(r)).join(" | ");
+        statusDiv.style.color = "red";
+        
+        // Add debug info
+        const debugDiv = document.createElement("div");
+        debugDiv.style.cssText = "margin-top:8px;padding:8px;background:#fee2e2;border-radius:4px;font-size:12px;";
+        debugDiv.innerHTML = `<strong>Debug Info:</strong><br>` +
+          `Pivot table: ${pivotsForThisQuery[0]?.table || 'unknown'}<br>` +
+          `Query table: ${q._queryTable || 'unknown'}<br>` +
+          `Pivot rows count: ${pivotsForThisQuery.length}<br>` +
+          `Oracle rows count: ${Array.isArray(q.oracle) ? q.oracle.length : 0}`;
+        statusDiv.appendChild(debugDiv);
+      }
+      item.appendChild(statusDiv);
+    }
+
+
+    if(q.oracle){
+      const oracleLabel=document.createElement("strong"); oracleLabel.textContent="Oracle (Expected Result):"; item.appendChild(oracleLabel);
+      try{
+        let oracleData = normalizeOracle(q.sql, q.oracle);
+        if(typeof oracleData==='string'){ oracleData=oracleData.trim().startsWith("[")?JSON.parse(oracleData):oracleData; }
+        if(Array.isArray(oracleData)&&oracleData.length&&typeof oracleData[0]==='object'){
+          const oracleTable=document.createElement("table");
+          const thead=document.createElement("thead"); const trHead=document.createElement("tr");
+          Object.keys(oracleData[0]).forEach(col=>{ const th=document.createElement("th"); th.textContent=col; trHead.appendChild(th); });
+          thead.appendChild(trHead); oracleTable.appendChild(thead);
+          const tbody=document.createElement("tbody");
+          oracleData.forEach(r=>{ const tr=document.createElement("tr"); Object.values(r).forEach(v=>{ const td=document.createElement("td"); td.textContent=v; tr.appendChild(td); }); tbody.appendChild(tr); });
+          oracleTable.appendChild(tbody); item.appendChild(oracleTable);
+        } else { const pre=document.createElement("pre"); pre.textContent=JSON.stringify(oracleData,null,2); item.appendChild(pre); }
+      }catch(e){ const pre=document.createElement("pre"); pre.textContent=q.oracle; item.appendChild(pre); }
+    }
+
+    container.appendChild(item);
+  });
+}
+
+// ===== SCHEMA TEMPLATE LOGIC =====
+const schemaTemplates = {
+  users_posts: `
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY,
+  name TEXT,
+  email TEXT
+);
+
+CREATE TABLE posts (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER,
+  title TEXT,
+  content TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+`,
+  ecommerce: `
+CREATE TABLE customers (
+  customer_id INTEGER PRIMARY KEY,
+  name TEXT,
+  email TEXT
+);
+
+CREATE TABLE orders (
+  order_id INTEGER PRIMARY KEY,
+  customer_id INTEGER,
+  order_date DATE,
+  FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+);
+
+CREATE TABLE products (
+  product_id INTEGER PRIMARY KEY,
+  name TEXT,
+  price FLOAT
+);
+
+CREATE TABLE order_items (
+  order_item_id INTEGER PRIMARY KEY,
+  order_id INTEGER,
+  product_id INTEGER,
+  quantity INTEGER,
+  price_at_purchase FLOAT,
+  FOREIGN KEY (order_id) REFERENCES orders(order_id),
+  FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+`,
+  university: `
+CREATE TABLE students (
+  student_id INTEGER PRIMARY KEY,
+  name TEXT,
+  email TEXT
+);
+
+CREATE TABLE courses (
+  course_id INTEGER PRIMARY KEY,
+  course_name TEXT,
+  credits INTEGER
+);
+
+CREATE TABLE enrollments (
+  enrollment_id INTEGER PRIMARY KEY,
+  student_id INTEGER,
+  course_id INTEGER,
+  enrollment_date DATE,
+  grade TEXT,
+  FOREIGN KEY (student_id) REFERENCES students(student_id),
+  FOREIGN KEY (course_id) REFERENCES courses(course_id)
+);
+`
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  const select = document.getElementById("schemaTemplateSelect");
+  const area = document.getElementById("schemaInputArea");
+  if (select && area) {
+    select.value = "users_posts";
+    area.value = schemaTemplates.users_posts.trim();
+    select.addEventListener("change", () => {
+      if (select.value === "custom") {
+        area.value = "";
+        area.placeholder = "Write your own CREATE TABLE statements here...";
+      } else {
+        area.value = schemaTemplates[select.value].trim();
+      }
+    });
+  }
+});
+
+// ===== ADVANCED SQL PROMPT EXTENSION =====
+function enrichQueryPrompt(prompt) {
+  return prompt +
+    "\nUse advanced SQL constructs where appropriate, such as CTEs (WITH), window functions, CASE statements, EXISTS/NOT EXISTS, HAVING clauses, and nested subqueries.";
+}
+
+// ===== PIVOT RANGE SUPPORT =====
+document.getElementById("applyPivotRangeBtn")?.addEventListener("click", () => {
+  const table = document.getElementById("pivotTableSelect").value;
+  const start = parseInt(document.getElementById("pivotRangeStart").value);
+  const end = parseInt(document.getElementById("pivotRangeEnd").value);
+  if (!table || isNaN(start) || isNaN(end)) return;
+
+  for (let i = start; i <= end; i++) {
+    if (!pivotRows.some(pr => pr.table === table && pr.index === i)) {
+      pivotRows.push({ table, index: i });
+    }
+  }
+  updateSelectedPivots();
+  updatePivotTable();
+});
+
+// ===== GUI SCHEMA BUILDER (MINIMAL) =====
+document.getElementById("addTableGuiBtn")?.addEventListener("click", () => {
+  const name = prompt("Table name:");
+  if (!name) return;
+  const builder = document.getElementById("guiSchemaBuilder");
+  const div = document.createElement("div");
+  div.innerHTML = `<strong>${name}</strong> (columns comma-separated):
+    <input type='text' placeholder='id INTEGER, name TEXT' />
+    <button>Add</button>`;
+  div.querySelector("button").onclick = () => {
+    const cols = div.querySelector("input").value;
+    schemaArea.value += `\nCREATE TABLE ${name} (${cols});\n`;
+  };
+  builder.appendChild(div);
+});
+
+
+// ===== ORACLE VALIDATION (PQS CONTAINMENT ORACLE - FULLY FIXED) =====
+function checkPivotContainment(oracleRows, pivotRows) {
+  if (!Array.isArray(oracleRows)) return { passed: false, missing: pivotRows };
+
+  // Normalize oracle rows (handle vertical format from LLM)
+  function normalizeOracleRows(rows){
+    if (!Array.isArray(rows)) return [];
+    if (rows.length === 0) return [];
+    const looksVertical = rows.every(r => r && typeof r === 'object' && ('col' in r) && ('value' in r));
+    if (!looksVertical) return rows;
+
+    const cols = [...new Set(rows.map(r => String(r.col)))];
+    if (cols.length === 1) {
+      const c = cols[0];
+      return rows.map(r => ({ [c]: r.value }));
+    }
+
+    if (rows.length === cols.length) {
+      const obj = {};
+      rows.forEach(r => { obj[String(r.col)] = r.value; });
+      return [obj];
+    }
+
+    if (rows.length % cols.length === 0) {
+      const out = [];
+      for (let i = 0; i < rows.length; i += cols.length) {
+        const obj = {};
+        for (let j = 0; j < cols.length; j++) {
+          const r = rows[i + j];
+          obj[String(r.col)] = r.value;
+        }
+        out.push(obj);
+      }
+      return out;
+    }
+
+    const obj = {};
+    rows.forEach(r => { obj[String(r.col)] = r.value; });
+    return [obj];
+  }
+
+  const normOracle = normalizeOracleRows(oracleRows);
+  const missing = [];
+
+  pivotRows.forEach(pr => {
+    const pivotRow = allTableData[pr.table]?.[pr.index];
+    if (!pivotRow) {
+      console.warn(`Pivot row not found: table=${pr.table}, index=${pr.index}`);
+      return;
+    }
+
+    const found = normOracle.some(or => {
+      // CRITICAL FIX: Compare ALL columns that exist in BOTH pivot and oracle
+      // This ensures we're checking the right data
+      const pivotKeys = Object.keys(pivotRow);
+      const oracleKeys = Object.keys(or);
+      
+      // Find common columns
+      const commonKeys = pivotKeys.filter(k => oracleKeys.includes(k));
+      
+      if (commonKeys.length === 0) {
+        console.warn(`No common columns between pivot and oracle`, {pivotKeys, oracleKeys});
+        return false;
+      }
+      
+      // Check if all common columns match
+      return commonKeys.every(col => {
+        const match = String(or[col]) === String(pivotRow[col]);
+        if (!match) {
+          console.debug(`Column mismatch: ${col}`, {oracle: or[col], pivot: pivotRow[col]});
+        }
+        return match;
+      });
+    });
+
+    if (!found) {
+      missing.push(pivotRow);
+    }
+  });
+
+  return { passed: missing.length === 0, missing };
+}
+
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  // Bug-fix: target the pivot controls specifically (do not rely on first <select>/<button> on the page)
+  const tableSelect = document.getElementById("pivotTableSelect");
+  const addRangeBtn = document.getElementById("applyPivotRangeBtn");
+  const addPivotBtn = document.getElementById("applyPivotBtn");
+
+  function ensureTableSelected(e) {
+    if (!tableSelect || tableSelect.value === "" || tableSelect.value.includes("Select")) {
+      alert("Please select the pivot table first.");
+      e.preventDefault();
+      return false;
+    }
+    return true;
+  }
+
+  if (addRangeBtn) {
+    addRangeBtn.addEventListener("click", function (e) {
+      ensureTableSelected(e);
+    });
+  }
+
+  if (addPivotBtn) {
+    addPivotBtn.addEventListener("click", function (e) {
+      ensureTableSelected(e);
+    });
+  }
+});
+</script>
+
+</body>
+</html>
